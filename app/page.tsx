@@ -174,7 +174,7 @@ export default function Home() {
             <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 p-10 rounded-3xl text-white shadow-xl shadow-indigo-200">
               <div className="relative z-10 max-w-2xl space-y-5">
                 <span className="inline-block bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
-                  SMK Network & System Administration
+                  SMK TELKOM MALANG
                 </span>
                 <h1 className="text-5xl font-black leading-tight">
                   Profil Resmi & Portfolio Kelas <br />
