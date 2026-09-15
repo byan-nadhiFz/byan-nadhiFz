@@ -60,11 +60,25 @@ export default function Home() {
     };
   });
 
-  const filteredStudents = students.filter(s => 
-    s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.panggilan.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.keahlian.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fitur SQL Injection Langsung di Input Pencarian Pengguna
+  const isSqliPayload = searchQuery.includes("'") || 
+                        searchQuery.toLowerCase().includes("or") || 
+                        searchQuery.includes("1=1") || 
+                        searchQuery.includes("1'='1");
+
+  const filteredStudents = students.filter(s => {
+    if (!searchQuery.trim()) return true;
+
+    // Jika pengguna memasukkan payload SQL Injection (contoh: ' OR '1'='1)
+    if (isSqliPayload) {
+      return true; // Bypass query: mengembalikan SEMUA data siswa tanpa filter
+    }
+
+    // Query Normal
+    return s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           s.panggilan.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           s.keahlian.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const handleSQLiSimulate = () => {
     if (sqliInput.includes("' OR '1'='1") || sqliInput.includes("' OR 1=1")) {
@@ -252,13 +266,26 @@ export default function Home() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Cari nama atau panggilan..."
+                  placeholder="Cari nama (Coba SQLi: ' OR '1'='1)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full md:w-80 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                  className="w-full md:w-80 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-mono"
                 />
               </div>
             </div>
+
+            {/* Indikator Peringatan Eksekusi SQLi Raw Query */}
+            {isSqliPayload && (
+              <div className="bg-slate-900 border border-amber-500/50 p-4 rounded-2xl text-xs font-mono text-amber-400 space-y-1">
+                <div className="font-bold text-amber-300">⚠️ Live Query Executed (Vulnerable to SQLi):</div>
+                <div className="text-slate-300">
+                  <span className="text-emerald-400">SELECT</span> * <span className="text-emerald-400">FROM</span> students <span className="text-emerald-400">WHERE</span> name = '{searchQuery}';
+                </div>
+                <div className="text-xs text-amber-200/80 font-sans mt-1">
+                  Kondisi kerentanan aktif: Input pengguna langsung digabungkan ke query tanpa sanitasi/parameterized query.
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredStudents.map((student) => (
