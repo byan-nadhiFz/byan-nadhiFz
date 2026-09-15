@@ -37,7 +37,7 @@ export default function Home() {
   // Logika Khusus Nama Panggilan
   const getNickname = (fullName: string) => {
     if (fullName.includes("M. Rafa Rizky")) {
-      return "Bos Brew";
+      return "Rafa";
     }
     const parts = fullName.split(' ');
     if (parts[0].toLowerCase() === 'muhammad' && parts.length > 1) {
