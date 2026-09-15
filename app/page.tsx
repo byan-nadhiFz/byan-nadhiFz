@@ -7,15 +7,16 @@ export default function Home() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // State Praktikum Keamanan Web
-  const [sqliInput, setSqliInput] = useState("' OR '1'='1");
-  const [sqliResult, setSqliResult] = useState<any>(null);
+  // State Komentar XSS khusus per Siswa (Key: studentId)
+  const [studentComments, setStudentComments] = useState<{ [key: number]: Array<{ id: number; name: string; comment: string }> }>({
+    1: [{ id: 1, name: 'Pengunjung', comment: 'Halo Aang, semangat belajar TKJ!' }]
+  });
   
-  const [xssInput, setXssInput] = useState("<script>alert('XSS Executed!')</script>");
-  const [xssCommentList, setXssCommentList] = useState([
-    { id: 1, name: 'Aang Burhanudin Badsah', comment: 'Halo, salam kenal dari kelas XI TKJ 3!' }
-  ]);
-  
+  // State Form Komentar Aktif
+  const [commenterName, setCommenterName] = useState('');
+  const [commentText, setCommentText] = useState("<script>alert('XSS Executed!')</script>");
+
+  // State Praktikum Keamanan Lainnya
   const [pathInput, setPathInput] = useState('../../../etc/passwd');
   const [pathResult, setPathResult] = useState<any>(null);
 
@@ -34,7 +35,6 @@ export default function Home() {
     "Yohan Alim Wijaya", "Ziyadatul Ilman Nafiah"
   ];
 
-  // Logika Khusus Nama Panggilan
   const getNickname = (fullName: string) => {
     if (fullName.includes("M. Rafa Rizky")) {
       return "Rafa";
@@ -60,7 +60,7 @@ export default function Home() {
     };
   });
 
-  // Fitur SQL Injection Langsung di Input Pencarian Pengguna
+  // Logika Simulasi SQL Injection di Search Bar
   const isSqliPayload = searchQuery.includes("'") || 
                         searchQuery.toLowerCase().includes("or") || 
                         searchQuery.includes("1=1") || 
@@ -68,45 +68,28 @@ export default function Home() {
 
   const filteredStudents = students.filter(s => {
     if (!searchQuery.trim()) return true;
-
-    // Jika pengguna memasukkan payload SQL Injection (contoh: ' OR '1'='1)
-    if (isSqliPayload) {
-      return true; // Bypass query: mengembalikan SEMUA data siswa tanpa filter
-    }
-
-    // Query Normal
+    if (isSqliPayload) return true; // Bypass Query SQLi
     return s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
            s.panggilan.toLowerCase().includes(searchQuery.toLowerCase()) ||
            s.keahlian.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const handleSQLiSimulate = () => {
-    if (sqliInput.includes("' OR '1'='1") || sqliInput.includes("' OR 1=1")) {
-      setSqliResult({
-        queryExecuted: `SELECT * FROM students WHERE name = '${sqliInput}'`,
-        status: 'SUCCESS_VULN',
-        data: students,
-        explanation: 'Bypass Query terjadi! Kondisi OR 1=1 bernilai TRUE, sehingga MariaDB mengembalikan SELURUH 32 data siswa tanpa filter.'
-      });
-    } else {
-      const match = students.filter(s => s.nama.toLowerCase().includes(sqliInput.toLowerCase()));
-      setSqliResult({
-        queryExecuted: `SELECT * FROM students WHERE name = '${sqliInput}'`,
-        status: 'NORMAL',
-        data: match,
-        explanation: 'Query berjalan normal mencari data spesifik.'
-      });
-    }
-  };
+  // Handler Kirim Komentar (Vulnerable to Stored XSS)
+  const handleAddComment = (studentId: number) => {
+    if (!commentText.trim()) return;
 
-  const handleXSSAdd = () => {
-    if (xssInput.trim() !== '') {
-      setXssCommentList([...xssCommentList, {
-        id: Date.now(),
-        name: 'Pengunjung (XSS Test)',
-        comment: xssInput
-      }]);
-    }
+    const newComment = {
+      id: Date.now(),
+      name: commenterName.trim() || 'Pengunjung Anonim',
+      comment: commentText
+    };
+
+    setStudentComments(prev => ({
+      ...prev,
+      [studentId]: [...(prev[studentId] || []), newComment]
+    }));
+
+    setCommentText('');
   };
 
   const handlePathSimulate = () => {
@@ -184,7 +167,6 @@ export default function Home() {
         {/* BERANDA */}
         {activeTab === 'home' && (
           <div className="space-y-10">
-            {/* Hero Section */}
             <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 p-10 rounded-3xl text-white shadow-xl shadow-indigo-200">
               <div className="relative z-10 max-w-2xl space-y-5">
                 <span className="inline-block bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
@@ -212,43 +194,6 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              
-              {/* Decorative Circle Background */}
-              <div className="absolute -right-10 -bottom-10 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute right-20 top-10 w-60 h-60 bg-yellow-300/20 rounded-full blur-2xl pointer-events-none" />
-            </div>
-
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-indigo-50 shadow-sm hover:shadow-md transition-shadow flex items-center space-x-4">
-                <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-2xl">
-                  32
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Siswa</p>
-                  <p className="text-xl font-extrabold text-slate-800">Siswa Terdaftar</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-indigo-50 shadow-sm hover:shadow-md transition-shadow flex items-center space-x-4">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-xl">
-                  DB
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Database Engine</p>
-                  <p className="text-xl font-extrabold text-slate-800">MariaDB System</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-indigo-50 shadow-sm hover:shadow-md transition-shadow flex items-center space-x-4">
-                <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center font-black text-xl">
-                  LAB
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fokus Praktikum</p>
-                  <p className="text-xl font-extrabold text-slate-800">SQLi, XSS, Path</p>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -269,20 +214,16 @@ export default function Home() {
                   placeholder="Cari nama (Coba SQLi: ' OR '1'='1)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full md:w-80 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-mono"
+                  className="w-full md:w-80 px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                 />
               </div>
             </div>
 
-            {/* Indikator Peringatan Eksekusi SQLi Raw Query */}
             {isSqliPayload && (
               <div className="bg-slate-900 border border-amber-500/50 p-4 rounded-2xl text-xs font-mono text-amber-400 space-y-1">
                 <div className="font-bold text-amber-300">⚠️ Live Query Executed (Vulnerable to SQLi):</div>
                 <div className="text-slate-300">
                   <span className="text-emerald-400">SELECT</span> * <span className="text-emerald-400">FROM</span> students <span className="text-emerald-400">WHERE</span> name = '{searchQuery}';
-                </div>
-                <div className="text-xs text-amber-200/80 font-sans mt-1">
-                  Kondisi kerentanan aktif: Input pengguna langsung digabungkan ke query tanpa sanitasi/parameterized query.
                 </div>
               </div>
             )}
@@ -312,7 +253,7 @@ export default function Home() {
 
                   <button
                     onClick={() => { setSelectedStudent(student); setActiveTab('detail'); }}
-                    className="w-full bg-slate-100 group-hover:bg-indigo-600 text-slate-700 group-hover:text-white text-xs font-bold py-2.5 rounded-xl transition-colors duration-200"
+                    className="w-full bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white text-xs font-bold py-2.5 rounded-xl transition-colors duration-200"
                   >
                     Lihat Profil
                   </button>
@@ -322,7 +263,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* DETAIL SISWA */}
+        {/* DETAIL SISWA & FITUR XSS KOMENTAR TERPISAH */}
         {activeTab === 'detail' && selectedStudent && (
           <div className="space-y-6">
             <button 
@@ -331,8 +272,10 @@ export default function Home() {
             >
               ← Kembali ke Daftar Siswa
             </button>
+
+            {/* Header Profil */}
             <div className="bg-white p-8 rounded-3xl border border-indigo-50 shadow-lg grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="w-full h-72 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-2xl flex flex-col items-center justify-center text-white shadow-inner">
+              <div className="w-full h-64 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-2xl flex flex-col items-center justify-center text-white shadow-inner">
                 <span className="text-7xl font-black">{selectedStudent.panggilan[0]}</span>
                 <span className="mt-3 text-sm font-bold bg-white/20 px-4 py-1 rounded-full backdrop-blur-sm">
                   {selectedStudent.panggilan}
@@ -355,13 +298,85 @@ export default function Home() {
                     <span className="text-slate-400 font-bold uppercase block text-[10px] tracking-wider">Kelas</span>
                     <span className="text-indigo-600 font-extrabold text-sm">{selectedStudent.kelas}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 font-bold uppercase block text-[10px] tracking-wider">Minat / Hobi</span>
-                    <span className="text-slate-800 font-extrabold text-sm">{selectedStudent.hobi}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION FITUR XSS: Form Input Komentar & Hasil Komentar Sebelahnya */}
+            <div className="bg-white p-8 rounded-3xl border border-purple-100 shadow-md space-y-6">
+              <div className="flex items-center justify-between border-b border-purple-50 pb-4">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-purple-500 inline-block"></span>
+                    Komentar Pengunjung ({selectedStudent.panggilan})
+                  </h3>
+                  <p className="text-xs text-purple-600 font-semibold mt-0.5">
+                    Modul Stored XSS Practice: Komentar ini disimpan khusus untuk profil {selectedStudent.nama}.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* KIRI: Form Input Komentar */}
+                <div className="space-y-4 bg-purple-50/50 p-6 rounded-2xl border border-purple-100">
+                  <h4 className="text-sm font-bold text-purple-900">Beri Komentar Pengunjung</h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Nama Pengunjung</label>
+                      <input
+                        type="text"
+                        placeholder="Masukkan nama Anda..."
+                        value={commenterName}
+                        onChange={(e) => setCommenterName(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white border border-purple-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Isi Komentar (Vulnerable XSS Input)</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Tulis komentar atau payload XSS..."
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => handleAddComment(selectedStudent.id)}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-3 rounded-xl shadow-md shadow-purple-200 transition-all active:scale-95"
+                    >
+                      Kirim Komentar Ke {selectedStudent.panggilan}
+                    </button>
                   </div>
-                  <div>
-                    <span className="text-slate-400 font-bold uppercase block text-[10px] tracking-wider">Cita-cita</span>
-                    <span className="text-slate-800 font-extrabold text-sm">{selectedStudent.citaCita}</span>
+                </div>
+
+                {/* KANAN: Hasil Komentar Siswa Ini */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-700">Daftar Komentar Terpublikasi</h4>
+                  
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {(!studentComments[selectedStudent.id] || studentComments[selectedStudent.id].length === 0) ? (
+                      <div className="text-xs text-slate-400 italic bg-slate-50 p-6 rounded-2xl border border-dashed text-center">
+                        Belum ada komentar untuk {selectedStudent.panggilan}. Jadilah yang pertama berkomentar!
+                      </div>
+                    ) : (
+                      studentComments[selectedStudent.id].map((item) => (
+                        <div key={item.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-1">
+                          <div className="text-[11px] font-bold text-purple-400 flex items-center justify-between">
+                            <span>{item.name}</span>
+                            <span className="text-[9px] text-slate-500 font-mono">ID: #{item.id.toString().slice(-4)}</span>
+                          </div>
+                          {/* Rendering langsung tanpa sanitasi/escape -> Memicu Stored XSS */}
+                          <div 
+                            className="text-xs text-slate-200 font-mono bg-black/40 p-2.5 rounded-lg border border-purple-900/40 break-words"
+                            dangerouslySetInnerHTML={{ __html: item.comment }} 
+                          />
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -369,76 +384,21 @@ export default function Home() {
           </div>
         )}
 
-        {/* LAB KEAMANAN */}
+        {/* LAB KEAMANAN LAINNYA */}
         {activeTab === 'vulnerability' && (
           <div className="space-y-8">
             <div className="bg-gradient-to-r from-rose-500 to-red-600 text-white p-6 rounded-2xl shadow-lg shadow-rose-200">
               <h2 className="text-2xl font-black">Modul Praktikum Keamanan Web (Vulnerable Lab)</h2>
               <p className="text-xs font-medium text-rose-100 mt-1">
-                Simulasi kerentanan yang sengaja dibuat untuk bahan analisis tugas keamanan web & penetration testing.
+                Simulasi kerentanan Path Traversal untuk bahan analisis tugas keamanan web.
               </p>
-            </div>
-
-            {/* SQLi Lab */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-              <div className="flex items-center space-x-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500" />
-                <h3 className="text-base font-black text-slate-800">1. SQL Injection (SQLi)</h3>
-              </div>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={sqliInput}
-                  onChange={(e) => setSqliInput(e.target.value)}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 font-mono text-xs text-amber-700 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <button 
-                  onClick={handleSQLiSimulate} 
-                  className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-amber-200 transition-all"
-                >
-                  Simulasi Query
-                </button>
-              </div>
-              {sqliResult && (
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs space-y-2 font-mono text-slate-200">
-                  <div className="text-emerald-400">Query Executed: {sqliResult.queryExecuted}</div>
-                  <p className="text-slate-300 font-sans">{sqliResult.explanation}</p>
-                </div>
-              )}
-            </div>
-
-            {/* XSS Lab */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-              <div className="flex items-center space-x-2">
-                <span className="w-3 h-3 rounded-full bg-purple-500" />
-                <h3 className="text-base font-black text-slate-800">2. Stored Cross-Site Scripting (XSS)</h3>
-              </div>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={xssInput}
-                  onChange={(e) => setXssInput(e.target.value)}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 font-mono text-xs text-purple-700 font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <button 
-                  onClick={handleXSSAdd} 
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-all"
-                >
-                  Kirim Komentar
-                </button>
-              </div>
-              <div className="space-y-2 pt-2">
-                {xssCommentList.map(item => (
-                  <div key={item.id} className="bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs font-mono text-purple-300" dangerouslySetInnerHTML={{ __html: item.comment }} />
-                ))}
-              </div>
             </div>
 
             {/* Path Traversal Lab */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
               <div className="flex items-center space-x-2">
                 <span className="w-3 h-3 rounded-full bg-rose-500" />
-                <h3 className="text-base font-black text-slate-800">3. Path Traversal</h3>
+                <h3 className="text-base font-black text-slate-800">Path Traversal</h3>
               </div>
               <div className="flex gap-3">
                 <input
